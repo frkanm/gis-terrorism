@@ -1,0 +1,537 @@
+$def with (data)
+<!DOCTYPE html>
+<html>
+        <title>MAPBOX!</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <script src='https://api.mapbox.com/mapbox-gl-js/v0.40.0/mapbox-gl.js'></script>
+        <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+        <script src="https://cdn.jsdelivr.net/jquery.validation/1.16.0/jquery.validate.min.js"></script>
+        <script src='static/js/jquery-ui.min.js'></script>
+        <link href='https://api.mapbox.com/mapbox-gl-js/v0.40.0/mapbox-gl.css' rel='stylesheet' />
+        <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css"> 
+        <link rel="stylesheet" type="text/css" href="static/css/custom.css">
+        <link rel="stylesheet" type="text/css" href="static/css/jquery-ui.min.css">
+        <style>
+
+        </style>
+        <script>
+
+        </script>
+    </head>
+    <body>
+
+        <div class="w3-sidebar w3-bar-block w3-card-2 w3-animate-left" style="display:none; overflow-y: scroll;" id="mySidebar">
+          <button class="w3-bar-item w3-button w3-large" onclick="w3_close()">Close &times;</button>
+          <div class="w3-sidebar w3-bar-block">
+            <ul class="w3-ul">
+            <div class="w3-card-4">
+              <div class="w3-container w3-indigo">
+                <h2>Attack Types</h2>
+              </div>
+            <li>
+                <input class="w3-check" type="checkbox" checked="checked">
+                <label>$data['att_types'][0]</label>
+            </li>
+            $for x in data['att_types'][1:]:
+                <li>
+                    <input class="w3-check" type="checkbox">
+                    <label>$x</label>
+                </li>
+          </div>
+            </ul>
+            <div class="w3-card-4">
+                <div class="w3-container w3-indigo">
+                    <h2>Year Range</h2>
+                </div>
+                    <p>
+                        <label for="amount">From - To:</label>
+                        <input type="text" id="amount" readonly>
+                    </p>
+                    <div id="slider-range"></div>
+                </div>
+                <div class="w3-card-4">
+                  <div class="w3-container w3-indigo">
+                    <h2>Map Input Coordinates</h2>
+                  </div>
+                    <form id="cords_form">
+                        <p>
+                            <label>Latitude</label>
+                            <input class="w3-input" id="map_click_lat" type="text" name="cords_form_lat" readonly>
+                        </p>
+                        <p>     
+                            <label>Longitude</label>
+                            <input class="w3-input" id="map_click_lng" type="text" name="cords_form_lng" readonly>
+                        </p>
+                        <p>
+                            <button type="button" id="find_closest_button" class="w3-button w3-indigo">Find Closest Attack</button>
+                        </p>
+                    </form>
+                </div>
+                <div class="w3-card-4">
+                  <div class="w3-container w3-indigo">
+                    <h2>Country Statistics</h2>
+                  </div>
+                    <p>
+                        <button type="button" id="find_country_stats" class="w3-button w3-indigo">Show Country Statistics</button>
+                        <button type="button" id="hide_country_stats" class="w3-button w3-indigo">Hide</button>
+                    </p>
+                </div>
+          </div>
+        </div>
+
+        <div id="main">
+
+        <div class="w3-indigo">
+          <button id="openNav" class="w3-button w3-indigo w3-xlarge" onclick="w3_open()">&#9776;</button>
+          <div class="w3-container">
+          </div>
+        </div>
+
+        <div class="w3-container" id='map'></div>
+            <script>
+                mapboxgl.accessToken = 'pk.eyJ1IjoicXdlcnR6MTIyMzMzIiwiYSI6ImNqOGl6YTFsejE5Y2wyc3BrazJrdXFpMzMifQ.DudP4GneckAYJbnzbv9CHg';
+                var map = new mapboxgl.Map({
+                        container: 'map',
+                        //style: 'mapbox://styles/mapbox/streets-v10'
+                        style: 'mapbox://styles/qwertz122333/cjaf8vfmz6v902smveq8fk8bw'
+                    });
+                // Create a popup, but don't add it to the map yet.
+                var popup = new mapboxgl.Popup({
+                    closeButton: false
+                });
+                var popup_line = new mapboxgl.Popup({
+                    closeButton: false
+                });
+                var popup_poly = new mapboxgl.Popup({
+                    closeButton: false
+                });
+
+                // disable map rotation using right click + drag
+                map.dragRotate.disable();
+
+                map.on('load', function() {
+                    var hehe = $:data['geojson']
+                    map.loadImage("static/icons/marker-15.png", function(error, image) {
+                        if (error) throw error;
+                        map.addImage('marker-15', image);
+                    })
+                    map.addSource("map_source", {"type":"geojson", 
+                                                 "data":$:data['geojson'],
+                                                 cluster: true,
+                                                 clusterMaxZoom: 14, // Max zoom to cluster points on
+                                                 clusterRadius: 50 // Radius of each cluster when clustering points (defaults to 50)
+                                                });
+                    map.addLayer({
+                            "id": "map_layer_clusters",
+                            "type": "circle",
+                            "source": 'map_source',
+                            filter: ["has", "point_count"],
+                            paint: {
+                                "circle-color": {
+                                    property: "point_count",
+                                    type: "interval",
+                                    stops: [
+                                        [0, "#51bbd6"],
+                                        [100, "#f1f075"],
+                                        [750, "#f28cb1"],
+                                    ]
+                                },
+                                "circle-radius": {
+                                    property: "point_count",
+                                    type: "interval",
+                                    stops: [
+                                        [0, 20],
+                                        [100, 30],
+                                        [750, 40]
+                                    ]
+                                }
+                            }
+                    });
+                    map.addLayer({
+                           id: "map_layer_cluster-count",
+                           type: "symbol",
+                           source: "map_source",
+                           filter: ["has", "point_count"],
+                           layout: {
+                               "text-field": "{point_count_abbreviated}",
+                               "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+                               "text-size": 12
+                           }
+                       });
+                    map.addLayer({
+                            id: "map_layer_unclustered-point",
+                            type: "circle",
+                            source: "map_source",
+                            filter: ["!has", "point_count"],
+                            paint: {
+                                "circle-color": "#FF0000",
+                                "circle-radius": 4,
+                                "circle-stroke-width": 1,
+                                "circle-stroke-color": "#0000FF"
+                            }
+                        });
+                })  ;
+
+                map.on('mouseenter', 'map_layer_unclustered-point', function(e) {
+                        // Change the cursor style as a UI indicator.
+                        map.getCanvas().style.cursor = 'pointer';
+
+                        // Populate the popup and set its coordinates
+                        // based on the feature found.
+                        if(e.features[0].properties.alternative_txt == null){
+                            popup.setLngLat(e.features[0].geometry.coordinates)
+                                .setHTML("<h1>" + e.features[0].properties.attacktype1_txt + "</h1><p>City: " + e.features[0].properties.city + "</p><p>Weapon: " + e.features[0].properties.weaptype1_txt + "</p><p>Killed: " + e.features[0].properties.nkill + "</p><p>Wounded: " + e.features[0].properties.nwound +"</p><p>Date: " + e.features[0].properties.iday + "." + e.features[0].properties.imonth + "." + e.features[0].properties.iyear + "</p><p>'" + e.features[0].properties.alternative_txt + "'</p>").addTo(map);
+                        } else {
+                            popup.setLngLat(e.features[0].geometry.coordinates)
+                                .setHTML("<h1>" + e.features[0].properties.attacktype1_txt + "</h1><p>City: " + e.features[0].properties.city + "</p><p>Weapon: " + e.features[0].properties.weaptype1_txt + "</p><p>Killed: " + e.features[0].properties.nkill + "</p><p>Wounded: " + e.features[0].properties.nwound +"</p><p>Date: " + e.features[0].properties.iday + "." + e.features[0].properties.imonth + "." + e.features[0].properties.iyear + "</p>").addTo(map);
+                        }
+                        
+                });
+
+                map.on('mouseleave', 'map_layer_unclustered-point', function() {
+                        map.getCanvas().style.cursor = '';
+                        popup.remove();
+                });
+
+                map.on('mousemove', 'map_layer_line_closest', function(e) {
+                        // Change the cursor style as a UI indicator.
+                        map.getCanvas().style.cursor = 'pointer';
+
+                        // Populate the popup and set its coordinates
+                        // based on the feature found.
+                        popup_line.setLngLat(e.lngLat)
+                            .setHTML("<h1>" + e.features[0].properties.dist + "</h1>").addTo(map);
+                });
+
+                map.on('mouseleave', 'map_layer_line_closest', function() {
+                        map.getCanvas().style.cursor = '';
+                        popup_line.remove();
+                });
+
+                map.on('mousemove', 'map_layer_polygon_countries', function(e) {
+                        // Change the cursor style as a UI indicator.
+                        map.getCanvas().style.cursor = 'pointer';
+
+                        // Populate the popup and set its coordinates
+                        // based on the feature found.
+                        popup_poly.setLngLat(e.lngLat)
+                            .setHTML("Count:" + e.features[0].properties.cnt).addTo(map);
+                });
+
+                map.on('mouseleave', 'map_layer_polygon_countries', function() {
+                        map.getCanvas().style.cursor = '';
+                        popup_poly.remove();
+                });
+
+                map.on('click', function (e) {
+                        // e.point is the x, y coordinates of the mousemove event relative
+                        // to the top-left corner of the map
+                        jQuery("#map_click_lat").val(e.lngLat['lat']);
+                        jQuery("#map_click_lng").val(e.lngLat['lng']);
+                        if(map.getLayer('map_click')){
+                            map.removeLayer('map_click');
+                            map.removeSource('map_click_source');
+                        }
+                        if(map.getLayer('map_layer_line_closest')){
+                            map.removeLayer('map_layer_line_closest');
+                            map.removeSource('map_source_line_closest');
+                        }
+
+                        map.addSource("map_click_source", {"type":"geojson",
+                                                                  "data": {
+                                                                           "type": "FeatureCollection",
+                                                                            "features": [{
+                                                                                "type": "Feature",
+                                                                                "geometry": {
+                                                                                    "type": "Point",
+                                                                                    "coordinates": [e.lngLat['lng'], e.lngLat['lat']]
+                                                                                    }
+                                                                                }]
+                                                                            }
+                                                            }
+                                        );
+
+                        map.addLayer({
+                            "id": "map_click",
+                            "type": "symbol",
+                            "source": "map_click_source",
+                            "layout": {
+                                        "icon-image": "marker-15",
+                                      }
+                        });
+                });
+
+                function w3_open() {
+                    document.getElementById("main").style.marginLeft = "320px";
+                    document.getElementById("mySidebar").style.width = "320px";
+                    if(document.getElementById("mySidebar").style.display == "block"){
+                        document.getElementById("main").style.marginLeft = "0%";
+                        document.getElementById("mySidebar").style.display = "none";
+                    } else {
+                        document.getElementById("mySidebar").style.display = "block";
+                    }
+                  //document.getElementById("openNav").style.display = 'none';
+                }
+                function w3_close() {
+                    document.getElementById("main").style.marginLeft = "0%";
+                    document.getElementById("mySidebar").style.display = "none";
+                  //document.getElementById("openNav").style.display = "inline-block";
+                }
+
+                jQuery("#cords_form").validate({
+                   rules: {
+                     cords_form_lng: "required",
+                     cords_form_lat: "required"
+                   },
+                   messages: {
+                     cords_form_lng: "Please Specify Longitude",
+                     cords_form_lat: "Please Specify Latitude",
+
+                   }
+                })
+
+                function updateMap(){
+                    if(map.getLayer('map_layer_polygon_countries')){
+                        map.removeLayer('map_layer_polygon_countries');
+                    }
+                    if(map.getSource('map_source_polygon_contries')){
+                        map.removeSource('map_source_polygon_contries');
+                    }
+                    if(map.getLayer('map_layer_line_closest')){
+                        map.removeLayer('map_layer_line_closest');
+                    }
+                    if(map.getSource('map_source_line_closest')){
+                        map.removeSource('map_source_line_closest');
+                    }
+                    var input_data = {}
+                    input_data['checked_checkboxes'] = jQuery(":checked").next().map(function() {
+                                                        return this.innerHTML;
+                                                    }).get();
+                    input_data['min'] = jQuery('#slider-range').slider("values", 0)
+                    input_data['max'] = jQuery('#slider-range').slider("values", 1)
+                    var json_input_data = JSON.stringify(input_data)
+                    console.log("input stuff: " + json_input_data)
+                    jQuery.ajax({url: "/api/update",
+                                contentType: 'application/json',
+                                method: "POST",
+                                //async: false,
+                                data: json_input_data,
+                                success: function(result){
+                                    //console.log(result)
+                                    if(map.getLayer('map_layer_clusters')){
+                                        map.removeLayer('map_layer_clusters');
+                                        map.removeLayer('map_layer_cluster-count');
+                                        map.removeLayer('map_layer_unclustered-point');
+                                    }
+                                    if(map.getSource('map_source')){
+                                        map.removeSource('map_source');
+                                    }
+                                    var json_result = JSON.parse(result)
+                                    map.addSource("map_source", {"type":"geojson",
+                                                                 "data": json_result,
+                                                                cluster: true,
+                                                                clusterMaxZoom: 14, // Max zoom to cluster points on
+                                                                clusterRadius: 50 // Radius of each cluster when clustering (defaults to 50));
+                                                                });
+                                    map.addLayer({
+                                            "id": "map_layer_clusters",
+                                            "type": "circle",
+                                            "source": 'map_source',
+                                            filter: ["has", "point_count"],
+                                            paint: {
+                                                "circle-color": {
+                                                    property: "point_count",
+                                                    type: "interval",
+                                                    stops: [
+                                                        [0, "#51bbd6"],
+                                                        [100, "#f1f075"],
+                                                        [750, "#f28cb1"],
+                                                    ]
+                                                },
+                                                "circle-radius": {
+                                                    property: "point_count",
+                                                    type: "interval",
+                                                    stops: [
+                                                        [0, 20],
+                                                        [100, 30],
+                                                        [750, 40]
+                                                    ]
+                                                }
+                                            }
+                                    });
+                                    map.addLayer({
+                                           id: "map_layer_cluster-count",
+                                           type: "symbol",
+                                           source: "map_source",
+                                           filter: ["has", "point_count"],
+                                           layout: {
+                                               "text-field": "{point_count_abbreviated}",
+                                               "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+                                               "text-size": 12
+                                           }
+                                       });
+                                    map.addLayer({
+                                            id: "map_layer_unclustered-point",
+                                            type: "circle",
+                                            source: "map_source",
+                                            filter: ["!has", "point_count"],
+                                            paint: {
+                                                "circle-color": "#FF0000",
+                                                "circle-radius": 4,
+                                                "circle-stroke-width": 1,
+                                                "circle-stroke-color": "#0000FF"
+                                            }
+                                        });
+                     }});
+                }
+
+                jQuery(function() {
+                    jQuery("#slider-range").slider({
+                      range: true,
+                      min: $data['year_range']['min'],
+                      max: $data['year_range']['max'],
+                      values: [ $data['year_range']['min'], $data['year_range']['max'] ],
+                      slide: function( event, ui ) {
+                        jQuery("#amount").val(ui.values[0] + " - " + ui.values[1]);
+                      },
+                      change: function( event, ui ) {
+                        updateMap();
+                      }
+                    });
+                    jQuery("#amount").val(jQuery("#slider-range").slider("values",0) +
+                      " - " + jQuery("#slider-range").slider("values",1));
+                  });
+
+                jQuery(".w3-check").change(function() {
+                    updateMap();
+                });
+
+                jQuery("#find_closest_button").click(function() {
+                    var coords_valid_bool = jQuery("#cords_form").valid()
+                    if(!coords_valid_bool){
+                        return;
+                    }
+
+                    var input_data = {}
+                    input_data['lng'] = parseFloat(jQuery("#map_click_lng").val());
+                    input_data['lat'] = parseFloat(jQuery("#map_click_lat").val());
+                    input_data['checked_checkboxes'] = jQuery(":checked").next().map(function() {
+                                                        return this.innerHTML;
+                                                    }).get();
+                    input_data['min'] = jQuery('#slider-range').slider("values", 0);
+                    input_data['max'] = jQuery('#slider-range').slider("values", 1);
+                    var json_input_data = JSON.stringify(input_data);
+                    jQuery.ajax({url: "/api/find_closest",
+                                contentType: 'application/json',
+                                method: "POST",
+                                //async: false,
+                                data: json_input_data,
+                                success: function(result){
+                                    var json_result = JSON.parse(result);
+                                    console.log(json_result);
+                                    var distance_line = json_result['features'][0]['properties']['dist'];
+                                    if(distance_line > 1000){
+                                        distance_line /= 1000
+                                        json_result['features'][0]['properties']['dist'] = distance_line.toFixed(3) + " km";
+                                        console.log(json_result['features'][0]['properties']['dist'])
+                                    } else {
+                                        json_result['features'][0]['properties']['dist'] = distance_line.toFixed(3) + " m";
+                                    }
+
+
+                                    if(map.getLayer('map_layer_line_closest')){
+                                        map.removeLayer('map_layer_line_closest');
+                                    }
+                                    if(map.getSource('map_source_line_closest')){
+                                        map.removeSource('map_source_line_closest');
+                                    }
+                                    map.addSource("map_source_line_closest", 
+                                                    {"type":"geojson",
+                                                     "data": json_result,
+                                                    }
+                                                );
+                                    map.addLayer({
+                                            "id": "map_layer_line_closest",
+                                            "type": "line",
+                                            "source": 'map_source_line_closest',
+                                            "layout": {
+                                                "line-join": "round",
+                                                "line-cap": "round"
+                                            },
+                                            "paint": {
+                                                "line-color": "#3f51b5",
+                                                "line-width": 2
+                                            }
+                                    });
+                    }});
+                });
+
+                jQuery("#hide_country_stats").click(function() {
+                    if(map.getLayer('map_layer_polygon_countries')){
+                        map.removeLayer('map_layer_polygon_countries');
+                    }
+                    if(map.getSource('map_source_polygon_contries')){
+                        map.removeSource('map_source_polygon_contries');
+                    }
+                    updateMap();
+                });
+
+                jQuery("#find_country_stats").click(function() {
+
+                    if(map.getLayer('map_layer_clusters')){
+                        map.removeLayer('map_layer_clusters');
+                        map.removeLayer('map_layer_cluster-count');
+                        map.removeLayer('map_layer_unclustered-point');
+                    }
+                    if(map.getSource('map_source')){
+                        map.removeSource('map_source');
+                    }
+
+                    var input_data = {}
+                    input_data['checked_checkboxes'] = jQuery(":checked").next().map(function() {
+                                                        return this.innerHTML;
+                                                    }).get();
+                    input_data['min'] = jQuery('#slider-range').slider("values", 0);
+                    input_data['max'] = jQuery('#slider-range').slider("values", 1);
+                    var json_input_data = JSON.stringify(input_data);
+                    jQuery.ajax({url: "/api/country_stats",
+                                contentType: 'application/json',
+                                method: "POST",
+                                //async: false,
+                                data: json_input_data,
+                                success: function(result){
+                                    console.log(result);
+                                    var json_result = JSON.parse(result);
+                                    if(map.getLayer('map_layer_polygon_countries')){
+                                        map.removeLayer('map_layer_polygon_countries');
+                                    }
+                                    if(map.getSource('map_source_polygon_contries')){
+                                        map.removeSource('map_source_polygon_contries');
+                                    }
+                                    map.addSource("map_source_polygon_contries", 
+                                                    {"type":"geojson",
+                                                     "data": json_result,
+                                                    }
+                                                );
+                                    map.addLayer({
+                                            "id": "map_layer_polygon_countries",
+                                            "type": "fill",
+                                            "source": 'map_source_polygon_contries',
+                                            'layout': {},
+                                            'paint': {
+                                                'fill-color': {
+                                                    'type': 'identity',
+                                                    'property': 'color'
+                                                },
+                                                'fill-opacity': 0.5
+                                            }
+                                    });
+                                    map.moveLayer("map_layer_polygon_countries","map_layer_clusters")
+                    }});
+                });
+
+            </script>
+
+        </div>
+    </body>
+</html>
